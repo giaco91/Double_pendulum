@@ -1,12 +1,13 @@
 #Let's implement a chaos pendulum (double pendulum)
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont,ImageOps
 import matplotlib.pyplot as plt
 import cv2
 import os
 import librosa
 import librosa.display
 from routines import *
+import time
 
 
 def pil_list_to_cv2(pil_list):
@@ -334,43 +335,116 @@ def represent_set_of_trajectories(trajectory_list,img_res=1,m1=1,m2=1,l1=1,l2=0.
 	cv2_list=pil_list_to_cv2(frames)
 	generate_video(cv2_list,path=save_path+'point_cloud.avi',fps=frames_per_second)
 
+def reflect_y_axis(im):
+	return ImageOps.mirror(im).rotate(180,expand=True)
 
-def draw_fractal(dt=0.005,theta1_lower=-3,theta1_higher=3,theta2_lower=-3,theta2_higher=3,img_res=1,m1=1,m2=1,l1=1,l2=0.5,g=10,save_path='trash_figures/'):
+def get_color(ratio):
+	black=np.array([0,0,0])
+	blue=np.array([72,118,255])
+	indigo=np.array([75,0,130])
+	purple=np.array([128,0,128])
+	orchid=np.array([218,112,214])
+	plum=np.array([221,160,221])
+	white=np.array([255,255,255])
+	if ratio<0.1:
+		delta=ratio/0.1
+		color=delta*plum+(1-delta)*white
+		return tuple(color.astype(int))
+	elif 0.1<=ratio<0.2:
+		delta=(ratio-0.1)/0.1
+		color=delta*orchid+(1-delta)*plum
+		return tuple(color.astype(int))
+	elif 0.2<=ratio<0.4:
+		delta=(ratio-0.2)/0.2
+		color=delta*purple+(1-delta)*orchid
+		return tuple(color.astype(int))
+	elif 0.4<=ratio<0.7:
+		delta=(ratio-0.4)/0.3
+		color=delta*indigo+(1-delta)*purple
+		return tuple(color.astype(int))
+	elif 0.7<=ratio<1:
+		delta=(ratio-0.7)/0.3
+		color=delta*blue+(1-delta)*indigo
+		return tuple(color.astype(int))
+	else:
+		delta=(ratio-1)
+		color=delta*blue+(1-delta)*black
+		return tuple(color.astype(int))	
+
+def energy_condition(theta1,theta2,a,b):
+	return a*np.cos(theta1)+b*np.cos(theta2)<=a-b
+
+def test_flip(theta1,theta2,theta1_d,theta2_d,max_iter,m1,m2,l1,l2,g):
+	n_iter=0
+	max_theta2=0
+	phase_traject=[]
+	flip=False
+	while not flip and n_iter<max_iter:
+		n_iter+=1
+		#---explicite midpoint method ----
+		theta11,theta22,theta11_d,theta22_d=explicite_euler(dt/2,theta1,theta2,theta1_d,theta2_d,m1,m2,l1,l2,g)
+		theta11_dd,theta22_dd=get_theta_dd(theta11,theta22,theta11_d,theta22_d,m1,m2,l1,l2,g)
+		theta1_dd,theta2_dd=get_theta_dd(theta11,theta22,theta11_d,theta22_d,m1,m2,l1,l2,g)
+		theta1_d_new=theta1_d+dt*theta1_dd
+		theta2_d_new=theta2_d+dt*theta2_dd
+		theta1+=dt/2*(theta1_d+theta1_d_new)
+		theta2+=dt/2*(theta2_d+theta2_d_new)
+		theta1_d=theta1_d_new
+		theta2_d=theta2_d_new
+		phase_traject.append(np.array([theta1,theta2,theta1_d,theta2_d]))
+		abs_theta2=np.abs(theta2)			
+		if not abs_theta2<np.pi:
+			flip=True
+		elif abs_theta2>max_theta2:
+			max_theta2=abs_theta2
+	if not flip:
+		rgb_color=get_color(1+max_theta2/np.pi)
+	else:
+		rgb_color=get_color(n_iter/max_iter)
+	return rgb_color,np.asarray(phase_traject)
+
+def draw_fractal(dt=0.005,theta1_lower=-3,theta1_higher=3,theta2_lower=-3,theta2_higher=3,img_res=1,m1=1,m2=1,l1=1,l2=0.5,g=10,save_path='trash_figures/',is_symmetric=False,max_iter=1000,draw_inner=True):
+	start_time = time.time()
 	H=int(200*img_res)
 	W=H
 	delta1=(theta1_higher-theta1_lower)/W
 	delta2=(theta2_higher-theta2_lower)/H
-	max_iter=10000
 	img = Image.new("RGB", (W, H), "white")
 	px=img.load()
 	p=0
+	a=-l1*m1
+	b=-l2*m2
+	frames=[]
 	for w in range(W):
 		for h in range(H):
-			print('calculate pixel '+str(p)+'/'+str(W*H))
-			p+=1
-			theta1=theta1_lower+w*delta1
-			theta2=theta2_lower+h*delta2
-			theta1_d=0
-			theta2_d=0
-			flip=False
-			n_iter=0
-			while not flip and n_iter<max_iter:
-				n_iter+=1
-				#---explicite midpoint method ----
-				theta11,theta22,theta11_d,theta22_d=explicite_euler(dt/2,theta1,theta2,theta1_d,theta2_d,m1,m2,l1,l2,g)
-				theta11_dd,theta22_dd=get_theta_dd(theta11,theta22,theta11_d,theta22_d,m1,m2,l1,l2,g)
-				theta1_dd,theta2_dd=get_theta_dd(theta11,theta22,theta11_d,theta22_d,m1,m2,l1,l2,g)
-				theta1_d_new=theta1_d+dt*theta1_dd
-				theta2_d_new=theta2_d+dt*theta2_dd
-				theta1+=dt/2*(theta1_d+theta1_d_new)
-				theta2+=dt/2*(theta2_d+theta2_d_new)
-				theta1_d=theta1_d_new
-				theta2_d=theta2_d_new				
-				if not -np.pi<theta2<np.pi:
-					flip=True
-			intensity=int(255*n_iter/max_iter)
-			px[w,h]=(intensity,intensity,intensity)
+			if h<=H/2 or not is_symmetric:
+				if p%100==0:
+					print('calculate pixel '+str(p)+'/'+str(W*H))
+				p+=1
+				theta1=theta1_lower+w*delta1
+				theta2=theta2_lower+h*delta2
+				theta1_d=0
+				theta2_d=0
+				flip=False
+				n_iter=0
+				max_theta2=0
+				if energy_condition(theta1,theta2,a,b) and not draw_inner:
+					rgb_color=get_color(1)
+				else:
+					rgb_color,phase_traject=test_flip(theta1,theta2,theta1_d,theta2_d,max_iter,m1,m2,l1,l2,g)
+				px[w,h]=rgb_color
+				if is_symmetric:
+					# px[W-w-1,H-h-1]=(intensity,intensity,intensity)	
+					px[W-w-1,H-h-1]=rgb_color
+		frames.append(reflect_y_axis(img))
+	img=reflect_y_axis(img)
+	img.save('trash_figures/fractal_'+str(img_res)+'.png',format='png')
+	cv2_list=pil_list_to_cv2(frames)
+	generate_video(cv2_list,path='trash_figures/fractal_'+str(img_res)+'.avi',fps=10)
+	print("--- %s seconds ---" % (time.time() - start_time))	
 	img.show()
+	return img
+
 
 theta1_init=4*np.pi/8
 theta2_init=1*np.pi/8
@@ -379,7 +453,7 @@ theta2_d_init=0
 dt=0.005
 frames_per_second=50
 take_frame_every=int(1/(dt*frames_per_second))
-n_iter=4000
+n_iter=3000
 m2=0.7
 
 
@@ -395,7 +469,7 @@ m2=0.7
 
 
 #---draw fractal
-draw_fractal(dt=0.005,theta1_lower=-3,theta1_higher=3,theta2_lower=-3,theta2_higher=3,img_res=0.1,m1=1,m2=1,l1=1,l2=0.5,g=10,save_path='trash_figures/')
+img=draw_fractal(dt=0.01,theta1_lower=-3,theta1_higher=3,theta2_lower=-3,theta2_higher=3,img_res=0.1,m1=1,m2=1,l1=1,l2=0.5,g=10,save_path='trash_figures/',is_symmetric=True,max_iter=300,draw_inner=True)
 
 
 # phase_traject=calculate_trajectory(n_iter,dt,theta1_init,theta2_init,theta1_d_init,theta2_d_init,m2=m2,l1=1,l2=0.5)
