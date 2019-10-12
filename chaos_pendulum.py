@@ -338,7 +338,7 @@ def represent_set_of_trajectories(trajectory_list,img_res=1,m1=1,m2=1,l1=1,l2=0.
 def reflect_y_axis(im):
 	return ImageOps.mirror(im).rotate(180,expand=True)
 
-def get_color(ratio):
+def get_color(ratio,gray=False):
 	black=np.array([0,0,0])
 	blue=np.array([72,118,255])
 	indigo=np.array([75,0,130])
@@ -346,35 +346,39 @@ def get_color(ratio):
 	orchid=np.array([218,112,214])
 	plum=np.array([221,160,221])
 	white=np.array([255,255,255])
-	if ratio<0.1:
-		delta=ratio/0.1
-		color=delta*plum+(1-delta)*white
-		return tuple(color.astype(int))
-	elif 0.1<=ratio<0.2:
-		delta=(ratio-0.1)/0.1
-		color=delta*orchid+(1-delta)*plum
-		return tuple(color.astype(int))
-	elif 0.2<=ratio<0.4:
-		delta=(ratio-0.2)/0.2
-		color=delta*purple+(1-delta)*orchid
-		return tuple(color.astype(int))
-	elif 0.4<=ratio<0.7:
-		delta=(ratio-0.4)/0.3
-		color=delta*indigo+(1-delta)*purple
-		return tuple(color.astype(int))
-	elif 0.7<=ratio<1:
-		delta=(ratio-0.7)/0.3
-		color=delta*blue+(1-delta)*indigo
+	if gray:
+		color=ratio*black+(1-ratio)*white
 		return tuple(color.astype(int))
 	else:
-		delta=(ratio-1)
-		color=delta*blue+(1-delta)*black
-		return tuple(color.astype(int))	
+		if ratio<0.1:
+			delta=ratio/0.1
+			color=delta*plum+(1-delta)*white
+			return tuple(color.astype(int))
+		elif 0.1<=ratio<0.2:
+			delta=(ratio-0.1)/0.1
+			color=delta*orchid+(1-delta)*plum
+			return tuple(color.astype(int))
+		elif 0.2<=ratio<0.4:
+			delta=(ratio-0.2)/0.2
+			color=delta*purple+(1-delta)*orchid
+			return tuple(color.astype(int))
+		elif 0.4<=ratio<0.7:
+			delta=(ratio-0.4)/0.3
+			color=delta*indigo+(1-delta)*purple
+			return tuple(color.astype(int))
+		elif 0.7<=ratio<1:
+			delta=(ratio-0.7)/0.3
+			color=delta*blue+(1-delta)*indigo
+			return tuple(color.astype(int))
+		else:
+			delta=(ratio-1)
+			color=delta*blue+(1-delta)*black
+			return tuple(color.astype(int))	
 
 def energy_condition(theta1,theta2,a,b):
 	return a*np.cos(theta1)+b*np.cos(theta2)<=a-b
 
-def test_flip(theta1,theta2,theta1_d,theta2_d,max_iter,m1,m2,l1,l2,g):
+def test_flip(theta1,theta2,theta1_d,theta2_d,max_iter,m1,m2,l1,l2,g,draw_inner=True,gray=False):
 	n_iter=0
 	max_theta2=0
 	phase_traject=[]
@@ -397,13 +401,123 @@ def test_flip(theta1,theta2,theta1_d,theta2_d,max_iter,m1,m2,l1,l2,g):
 			flip=True
 		elif abs_theta2>max_theta2:
 			max_theta2=abs_theta2
-	if not flip:
-		rgb_color=get_color(1+max_theta2/np.pi)
+	if not flip and draw_inner:
+		rgb_color=get_color(1+max_theta2/np.pi,gray=gray)
+	elif draw_inner:
+		rgb_color=get_color(n_iter/max_iter,gray=gray)
 	else:
-		rgb_color=get_color(n_iter/max_iter)
+		rgb_color=get_color(1,gray=gray)
 	return rgb_color,np.asarray(phase_traject)
 
-def draw_fractal(dt=0.005,theta1_lower=-3,theta1_higher=3,theta2_lower=-3,theta2_higher=3,img_res=1,m1=1,m2=1,l1=1,l2=0.5,g=10,save_path='trash_figures/',is_symmetric=False,max_iter=1000,draw_inner=True):
+def get_illustration(rgb_color,old_pixels,phase_traject,ww,hh,W,H,m1,m2,l1,l2,g,take_frame_every,img_res=1.6):
+	h=int(img_res*200)
+	w=2*h
+	w_34=int(3*w/4)
+	x0=int(h/2)
+	y0=int(h/2)
+	h_red=int(0.4*h)
+	l_tot=l1+l2
+	l1_ratio=l1/l_tot
+	l2_ratio=l2/l_tot
+	L1=l1_ratio*h_red
+	L2=l2_ratio*h_red
+	d=int(0.02*h)
+	d1=d*m1**(1/3)
+	d2=d*m2**(1/3)
+	frames=[]
+	delta_w=int(0.8*h/W)
+	delta_h=int(0.8*h/H)
+	proto_img=Image.new("RGB", (w, h), "white")
+	px=proto_img.load()
+	for op in old_pixels:
+		for u in range(delta_w):
+			for v in range(delta_h):	
+				px[op[0]+u,op[1]+v]=op[2]
+	draw = ImageDraw.Draw(proto_img)
+	draw.ellipse([(int(w_34-0.4*h+(ww+1/2)*delta_w-d),int(0.1*h+(hh+1/2)*delta_h-d)),(int(w_34-0.4*h+(ww+1/2)*delta_w+d),int(0.1*h+(hh+1/2)*delta_h+d))], fill=(255,255,0), outline=(0,0,0))
+
+	for i in range(phase_traject.shape[0]):
+		if i%take_frame_every==0:
+			theta1=phase_traject[i,0]
+			theta2=phase_traject[i,1]
+			theta1_d=phase_traject[i,2]
+			theta2_d=phase_traject[i,3]
+			#----transform to cartesian coordinates---
+			x1=x0+L1*np.sin(theta1)
+			y1=y0+L1*np.cos(theta1)
+			x2=x1+L2*np.sin(theta2)
+			y2=y1+L2*np.cos(theta2)
+			#---draw the image ----
+			img = proto_img.copy()
+			draw = ImageDraw.Draw(img)
+			draw_arrow(draw,np.asarray([int(9*h/8),int(h/2+delta_h/2)]),np.asarray([int(15*h/8),int(h/2+delta_h/2)]),flank_length=int(h/50))#horizontal
+			draw_arrow(draw,np.asarray([int(delta_w/2+w_34),int(7*h/8)]),np.asarray([int(delta_w/2+w_34),int(1*h/8)]),flank_length=int(h/50))#vertical
+			font = ImageFont.truetype("arial.ttf", int(h/20))
+			draw.text((w_34-h/7+delta_w/2,int(1*h/16)), 'outer angle', font=font, fill=(0,0,0))
+			draw.text((int(27*h/16),int(h/2+h/30+delta_h/2)), 'inner angle', font=font, fill=(0,0,0))
+			draw.text((int(h/16),int(h/16)), 'Iterations: '+str(i), font=font, fill=(0,0,0))
+
+			draw.line([(x0,y0),(x1,y1)],fill=(0,0,0),width=2)		
+			draw.line([(x1,y1),(x2,y2)],fill=(0,0,0),width=2)
+			draw.ellipse([(x1-d1,y1-d1),(x1+d1,y1+d1)], fill=(0,0,0), outline=None)
+			draw.ellipse([(x2-d2,y2-d2),(x2+d2,y2+d2)], fill=(0,0,0), outline=None)
+
+			px=img.load()
+			if i>=phase_traject.shape[0]-1-take_frame_every:
+				for u in range(delta_w):
+					for v in range(delta_h):					
+						px[int(w_34-0.4*h+ww*delta_w+u),int(0.1*h+hh*delta_h+v)]=rgb_color
+				old_pixels.append([int(w_34-0.4*h+ww*delta_w),int(0.1*h+hh*delta_h),rgb_color])
+			if i<take_frame_every:
+				for j in range(10):
+					frames.append(img)
+			frames.append(img)
+	for j in range(10):
+		frames.append(img)
+	return frames,old_pixels
+
+
+
+def draw_fractal_illustration(dt=0.01,theta1_lower=-3,theta1_higher=3,theta2_lower=-3,theta2_higher=3,img_res=1,m1=1,m2=1,l1=1,l2=0.5,g=10,save_path='trash_figures/',max_iter=300,frames_per_second=20,take_frame_every=5):
+	start_time = time.time()
+	H=int(200*img_res)
+	W=H
+	delta1=(theta1_higher-theta1_lower)/W
+	delta2=(theta2_higher-theta2_lower)/H
+	p=0
+	frames=[]
+	old_pixels=[]
+	a=-l1*m1
+	b=-l2*m2
+	fac=1
+	for w in range(W):
+		for h in range(H):
+			p+=1
+			print('iteration: '+str(p)+'/'+str(W*H))
+			theta1=theta1_lower+w*delta1
+			theta2=theta2_lower+h*delta2
+			theta1_d=0
+			theta2_d=0
+			flip=False
+			n_iter=0
+			max_theta2=0
+			if energy_condition(theta1,theta2,a,b):
+				rgb_color,phase_traject=test_flip(theta1,theta2,theta1_d,theta2_d,max_iter,m1,m2,l1,l2,g,draw_inner=False,gray=True)
+			else:
+				rgb_color,phase_traject=test_flip(theta1,theta2,theta1_d,theta2_d,max_iter,m1,m2,l1,l2,g,draw_inner=True,gray=True)
+			if 5<p<10:
+				fac=2
+			elif 10<=p:
+				fac=4
+			frame_set,old_pixels=get_illustration(rgb_color,old_pixels,phase_traject,w,h,W,H,m1,m2,l1,l2,g,take_frame_every*fac)
+			frames+=frame_set
+
+	cv2_list=pil_list_to_cv2(frames)
+	generate_video(cv2_list,path='trash_figures/fractal_illustration'+str(img_res)+'.avi',fps=frames_per_second)
+
+
+
+def draw_fractal(dt=0.005,theta1_lower=-3,theta1_higher=3,theta2_lower=-3,theta2_higher=3,img_res=1,m1=1,m2=1,l1=1,l2=0.5,g=10,save_path='trash_figures/',is_symmetric=False,max_iter=300,draw_inner=True,show_limit=False):
 	start_time = time.time()
 	H=int(200*img_res)
 	W=H
@@ -433,16 +547,39 @@ def draw_fractal(dt=0.005,theta1_lower=-3,theta1_higher=3,theta2_lower=-3,theta2
 				else:
 					rgb_color,phase_traject=test_flip(theta1,theta2,theta1_d,theta2_d,max_iter,m1,m2,l1,l2,g)
 				px[w,h]=rgb_color
-				if is_symmetric:
-					# px[W-w-1,H-h-1]=(intensity,intensity,intensity)	
+				if is_symmetric:	
 					px[W-w-1,H-h-1]=rgb_color
 		frames.append(reflect_y_axis(img))
+	if show_limit:
+		img_limit=img.copy()
+		px_limit=img_limit.load()
+		for w in range(W):
+			theta1=theta1_lower+w*delta1
+			argument=a/b*(1-np.cos(theta1))-1
+			if -1<argument<1:
+				theta2_crit=np.arccos(argument)
+				h_crit=round((theta2_crit-theta2_lower)/delta2)
+				if h_crit<=H-1:
+					px_limit[w,h_crit]=(255,255,0)
+					px_limit[w,-h_crit+H]=(255,255,0)
+		for h in range(H):
+			theta2=theta2_lower+h*delta2
+			argument=b/a*(-1-np.cos(theta2))+1
+			if -1<argument<1:
+				theta1_crit=np.arccos(argument)
+				w_crit=round((theta1_crit-theta1_lower)/delta1)
+				if w_crit<=W-1:
+					px_limit[w_crit,h]=(255,255,0)
+					px_limit[-w_crit+W,h]=(255,255,0)
+		img_limit.show()
+
 	img=reflect_y_axis(img)
 	img.save('trash_figures/fractal_'+str(img_res)+'.png',format='png')
 	cv2_list=pil_list_to_cv2(frames)
 	generate_video(cv2_list,path='trash_figures/fractal_'+str(img_res)+'.avi',fps=10)
 	print("--- %s seconds ---" % (time.time() - start_time))	
 	img.show()
+
 	return img
 
 
@@ -450,8 +587,8 @@ theta1_init=4*np.pi/8
 theta2_init=1*np.pi/8
 theta1_d_init=0
 theta2_d_init=0
-dt=0.005
-frames_per_second=50
+dt=0.01
+frames_per_second=20
 take_frame_every=int(1/(dt*frames_per_second))
 n_iter=3000
 m2=0.7
@@ -469,8 +606,8 @@ m2=0.7
 
 
 #---draw fractal
-img=draw_fractal(dt=0.01,theta1_lower=-3,theta1_higher=3,theta2_lower=-3,theta2_higher=3,img_res=0.1,m1=1,m2=1,l1=1,l2=0.5,g=10,save_path='trash_figures/',is_symmetric=True,max_iter=300,draw_inner=True)
-
+# img=draw_fractal(dt=dt,theta1_lower=-3,theta1_higher=3,theta2_lower=-3,theta2_higher=3,img_res=0.6,m1=1,m2=1,l1=1,l2=0.5,g=10,save_path='trash_figures/',is_symmetric=True,max_iter=300,draw_inner=True,show_limit=True)
+draw_fractal_illustration(dt=dt,theta1_lower=-3,theta1_higher=3,theta2_lower=-3,theta2_higher=3,img_res=0.03,m1=1,m2=1,l1=1,l2=0.5,g=10,save_path='trash_figures/',max_iter=600,frames_per_second=frames_per_second,take_frame_every=take_frame_every)
 
 # phase_traject=calculate_trajectory(n_iter,dt,theta1_init,theta2_init,theta1_d_init,theta2_d_init,m2=m2,l1=1,l2=0.5)
 # phase_traject_2=calculate_trajectory(n_iter,dt,theta1_init+1e-2,theta2_init+1e-2,theta1_d_init,theta2_d_init,m2=m2,l1=1,l2=0.5,add_energy=None)
