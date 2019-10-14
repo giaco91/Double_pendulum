@@ -423,12 +423,13 @@ def test_flip(theta1,theta2,theta1_d,theta2_d,max_iter,m1,m2,l1,l2,g,draw_inner=
 			flip=True
 		elif abs_theta2>max_theta2:
 			max_theta2=abs_theta2
-	if not flip and draw_inner:
-		rgb_color=get_color(1+max_theta2/np.pi,gray=gray)
-	elif draw_inner:
-		rgb_color=get_color(n_iter/max_iter,gray=gray)
+	if not flip:
+		if draw_inner:
+			rgb_color=get_color(1+max_theta2/np.pi,gray=gray)
+		else:
+			rgb_color=get_color(1,gray=gray)
 	else:
-		rgb_color=get_color(1,gray=gray)
+		rgb_color=get_color(n_iter/max_iter,gray=gray)
 	return rgb_color,np.asarray(phase_traject)
 
 def get_illustration(rgb_color,old_pixels,phase_traject,ww,hh,W,H,m1,m2,l1,l2,g,take_frame_every,img_res=1.6):
@@ -564,6 +565,9 @@ def draw_fractal(dt=0.005,theta1_lower=-3,theta1_higher=3,theta2_lower=-3,theta2
 		x2=x0
 		y2=y1+L2
 		draw = ImageDraw.Draw(img)
+		font = ImageFont.truetype("arial.ttf", int(H/20))
+		draw.text((int(H/20),int(H/16)), 'l1='+str(l1)[:4]+', l2='+str(l2)[:4], font=font, fill=(0,0,0))
+		draw.text((int(H/20),int(H/8)), 'm1='+str(m1)[:4]+', m2='+str(m2)[:4], font=font, fill=(0,0,0))
 		draw.line([(x0,y0),(x1,y1)],fill=(0,0,0),width=1)		
 		draw.line([(x1,y1),(x2,y2)],fill=(0,0,0),width=1)
 		draw.ellipse([(x1-d1,y1-d1),(x1+d1,y1+d1)], fill=(255,0,0), outline=None)
@@ -589,8 +593,7 @@ def draw_fractal(dt=0.005,theta1_lower=-3,theta1_higher=3,theta2_lower=-3,theta2
 				if energy_condition(theta1,theta2,-a,-b) and not draw_inner:
 					rgb_color=get_color(1)
 				else:
-
-					rgb_color,phase_traject=test_flip(theta1,theta2,theta1_d,theta2_d,max_iter,m1,m2,l1,l2,g,gray=gray)
+					rgb_color,phase_traject=test_flip(theta1,theta2,theta1_d,theta2_d,max_iter,m1,m2,l1,l2,g,gray=gray,draw_inner=draw_inner)
 				px[w_bias+w,h]=rgb_color
 				if is_symmetric:	
 					px[w_bias+W-w-1,H-h-1]=rgb_color
@@ -624,8 +627,8 @@ def draw_fractal(dt=0.005,theta1_lower=-3,theta1_higher=3,theta2_lower=-3,theta2
 	if not draw_pendelum_shape:
 		img=reflect_y_axis(img)
 		img.save('trash_figures/fractal_'+opt.mode+str(img_res)+'.png',format='png')
-		cv2_list=pil_list_to_cv2(frames)
-		generate_video(cv2_list,path='trash_figures/fractal_'+opt.mode+str(img_res)+'.avi',fps=10)
+		# cv2_list=pil_list_to_cv2(frames)
+		# generate_video(cv2_list,path='trash_figures/fractal_'+opt.mode+str(img_res)+'.avi',fps=10)
 	print("--- %s seconds ---" % (time.time() - start_time))	
 	return img
 
@@ -670,7 +673,7 @@ elif opt.mode=='draw_fractal_morph':
 	for i in range(N):
 		img=draw_fractal(dt=dt,theta1_lower=-3,theta1_higher=3,theta2_lower=-3,theta2_higher=3,img_res=opt.img_res,m1=1,m2=m2,l1=1,l2=l2,g=10,save_path='trash_figures/',is_symmetric=True,max_iter=opt.max_iter,draw_inner=True,show_limit=True,gray=False,draw_pendelum_shape=True)	
 		frames.append(img)
-		m2-=0.7/N
+		m2-=0.9/N
 	cv2_list=pil_list_to_cv2(frames)
 	generate_video(cv2_list,path='trash_figures/fractal_morph'+opt.mode+str(opt.img_res)+'.avi',fps=10)
 else:
