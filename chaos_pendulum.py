@@ -543,7 +543,7 @@ def draw_fractal(dt=0.005,theta1_lower=-3,theta1_higher=3,theta2_lower=-3,theta2
 	H=int(200*img_res)
 	W=H
 	if draw_pendelum_shape:
-		w_bias=int(0.3*H)
+		w_bias=int(0.5*H)
 	else:
 		w_bias=0
 	delta1=(theta1_higher-theta1_lower)/W
@@ -566,7 +566,7 @@ def draw_fractal(dt=0.005,theta1_lower=-3,theta1_higher=3,theta2_lower=-3,theta2
 		y2=y1+L2
 		draw = ImageDraw.Draw(img)
 		font = ImageFont.truetype("arial.ttf", int(H/20))
-		draw.text((int(H/20),int(H/16)), 'l1='+str(l1)[:4]+', l2='+str(l2)[:4], font=font, fill=(0,0,0))
+		draw.text((int(H/20),int(H/16)), 'l1='+str(l1_ratio)[:4]+', l2='+str(l2_ratio)[:4], font=font, fill=(0,0,0))
 		draw.text((int(H/20),int(H/8)), 'm1='+str(m1)[:4]+', m2='+str(m2)[:4], font=font, fill=(0,0,0))
 		draw.line([(x0,y0),(x1,y1)],fill=(0,0,0),width=1)		
 		draw.line([(x1,y1),(x2,y2)],fill=(0,0,0),width=1)
@@ -665,11 +665,11 @@ elif opt.mode=='draw_fractal_morph':
 	frames=[]
 	l2=1
 	m2=1
-	N=50
+	N=80
 	for i in range(N):
 		img=draw_fractal(dt=dt,theta1_lower=-3,theta1_higher=3,theta2_lower=-3,theta2_higher=3,img_res=opt.img_res,m1=1,m2=m2,l1=1,l2=l2,g=10,save_path='trash_figures/',is_symmetric=True,max_iter=opt.max_iter,draw_inner=True,show_limit=True,gray=False,draw_pendelum_shape=True)
 		frames.append(img)
-		l2-=0.7/N
+		l2-=0.8/N
 	for i in range(N):
 		img=draw_fractal(dt=dt,theta1_lower=-3,theta1_higher=3,theta2_lower=-3,theta2_higher=3,img_res=opt.img_res,m1=1,m2=m2,l1=1,l2=l2,g=10,save_path='trash_figures/',is_symmetric=True,max_iter=opt.max_iter,draw_inner=True,show_limit=True,gray=False,draw_pendelum_shape=True)	
 		frames.append(img)
