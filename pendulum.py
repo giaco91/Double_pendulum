@@ -218,9 +218,9 @@ n_iter=3000
 phase_traject=calculate_trajectory(theta_init,theta_d_init,dt=dt,n_iter=n_iter)
 # second_phase_traject=calculate_trajectory(theta_init+1e-2,theta_d_init,dt=dt,n_iter=n_iter)
 e_pot,e_kin=render_phase_traject(phase_traject,img_res=2,take_frame_every=take_frame_every,second_phase_traject=None,draw_phase=True)
-# plt.plot(e_pot+e_kin)
-# plt.ylabel('energy')
-# plt.show()
+plt.plot(e_pot+e_kin)
+plt.ylabel('energy')
+plt.show()
 
 
 
