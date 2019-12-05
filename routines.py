@@ -278,14 +278,15 @@ class classic_STFT():
         self.N_eff=int(N/2+1)
         self.DFT_obj=DFT_cosine_sine(N)
 
-    def get_energy_spec(self,x):
+    def get_energy_spec(self,x,verbose=True):
         L_x=x.shape[0]
         L_s=int(L_x/self.ns)+1
         buffer_x=np.zeros(int((self.N-1)/2+1))
         x=np.concatenate((buffer_x,x,buffer_x))
         energy_spec=np.zeros((self.N_eff,L_s))
         for l in range(L_s):
-            print('progress:'+str(l+1)+'/'+str(L_s))
+            if verbose:
+                print('progress:'+str(l+1)+'/'+str(L_s))
             position=l*self.ns
             y_hat,z_hat=self.DFT_obj.forward_fft(x[position:position+self.N])
             energy_spec[:,l]=(y_hat**2+z_hat**2)[0:self.N_eff]
