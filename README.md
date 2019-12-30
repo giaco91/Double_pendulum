@@ -2,7 +2,7 @@
 This is python code I wrote to simulate and analyze several interesting properties of the double pendulum. For many of them you find a corresponding video on my youtube channel:
 https://www.youtube.com/channel/UCE5SfFRiweIyDwLrnk1d8Kg?view_as=subscriber
 
-## Detailed tutorial of a pendulum simulation in pythonpendulum.ipynb
+## Detailed tutorial of a pendulum simulation in python
 The file `pendulum.ipynb` is a detailed tutorial style code about how you can simulate and render a single pendulum using basic python libraries. The corresponding video on youtube is
 
 https://www.youtube.com/watch?v=LS-NB1fhYSg&t
